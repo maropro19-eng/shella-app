@@ -12,7 +12,11 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.PowerManager;
 import android.provider.Settings;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.WindowManager;
+import android.webkit.ConsoleMessage;
+import android.os.Message;
 import android.view.ViewGroup;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
@@ -49,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
     private WebChromeClient.CustomViewCallback customCb;
     /** true لو المستخدم لمس عنصر داخلي (شات/نافذة/قائمة) وهو مش في أوله، عشان السحب ما يعملش ريفريش */
     private volatile boolean innerScrolled = false;
+    private volatile boolean touchInTopStrip = false;
 
     /** سكربت بيراقب اللمس: لو العنصر اللي تحت الصباع (أو أي أب ليه) عليه سكرول، نمنع السحب للتحديث */
     private static final String PROBE_JS =
@@ -82,12 +87,28 @@ public class MainActivity extends AppCompatActivity {
             if (u == null || u.startsWith("data:")) web.loadUrl(BuildConfig.SITE_URL); else web.reload();
         });
         // التحديث بالسحب بس لو الصفحة كلها وأي عنصر داخلي (شات/نافذة) في أولهم
-        swipe.setOnChildScrollUpCallback((p, c) -> web != null && (web.getScrollY() > 0 || innerScrolled));
+        swipe.setOnChildScrollUpCallback((p, c) -> web == null || web.getScrollY() > 0 || innerScrolled || !touchInTopStrip);
+        // التحديث بالسحب يشتغل بس لو اللمس بدأ من شريط صغير فوق، عشان سحب القرعة والسبورة ما يعملش ريفريش
+        web.setOnTouchListener((v, ev) -> {
+            if (ev.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                touchInTopStrip = ev.getY() < getResources().getDisplayMetrics().density * 90;
+            }
+            return false;
+        });
 
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setDatabaseEnabled(true);
+        s.setSupportMultipleWindows(true);
+        s.setLoadWithOverviewMode(false);
+        s.setCacheMode(WebSettings.LOAD_DEFAULT);
+        s.setAllowContentAccess(true);
+        web.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        web.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        web.setBackgroundColor(0xFF090D16);
+        if (BuildConfig.DEBUG) WebView.setWebContentsDebuggingEnabled(true);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); // السبورة والقرعة لازم الشاشة ما تطفيش
         s.setMediaPlaybackRequiresUserGesture(false);
         s.setTextZoom(100);                 // حجم خط النظام ما يكبّرش الصفحة ويبوّظ التصميم
         s.setUseWideViewPort(true);
@@ -141,6 +162,25 @@ public class MainActivity extends AppCompatActivity {
             }
             @Override public void onPermissionRequest(PermissionRequest req) {
                 runOnUiThread(() -> handleWebPermission(req));
+            }
+            @Override public boolean onCreateWindow(WebView v, boolean dialog, boolean userGesture, Message resultMsg) {
+                // window.open(): نحمّل الرابط في نفس الشاشة بدل ما يتجاهل
+                WebView tmp = new WebView(MainActivity.this);
+                tmp.setWebViewClient(new WebViewClient() {
+                    @Override public boolean shouldOverrideUrlLoading(WebView w, WebResourceRequest r) {
+                        Uri u = r.getUrl();
+                        if (isOwn(u) && web != null) web.loadUrl(u.toString()); else openExternal(u);
+                        w.destroy();
+                        return true;
+                    }
+                });
+                ((WebView.WebViewTransport) resultMsg.obj).setWebView(tmp);
+                resultMsg.sendToTarget();
+                return true;
+            }
+            @Override public boolean onConsoleMessage(ConsoleMessage m) {
+                android.util.Log.d("WazirWeb", m.message() + " @" + m.sourceId() + ":" + m.lineNumber());
+                return true;
             }
             @Override public void onShowCustomView(View v, CustomViewCallback cb) {
                 if (customView != null) { cb.onCustomViewHidden(); return; }
