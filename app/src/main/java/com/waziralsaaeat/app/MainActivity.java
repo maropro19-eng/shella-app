@@ -135,7 +135,12 @@ public class MainActivity extends AppCompatActivity {
                 if (!r.isForMainFrame()) return false; // الـ iframes تتحمل عادي ومتفتحش برا التطبيق
                 return handleNav(r.getUrl());
             }
-            @Override public void onPageStarted(WebView v, String url, android.graphics.Bitmap icon) { innerScrolled = false; }
+            @Override public void onPageStarted(WebView v, String url, android.graphics.Bitmap icon) {
+                innerScrolled = false;
+                v.evaluateJavascript("(function(){if(window.__wzErr)return;window.__wzErr=1;"
+                    + "window.addEventListener('error',function(e){try{WazirApp.reportError((e.message||'')+' @'+(e.filename||'').split('/').pop()+':'+e.lineno);}catch(x){}});"
+                    + "window.addEventListener('unhandledrejection',function(e){try{WazirApp.reportError('promise: '+(e.reason&&e.reason.message||e.reason));}catch(x){}});})();", null);
+            }
             @Override public void onPageFinished(WebView v, String url) {
                 swipe.setRefreshing(false);
                 cm.flush();
@@ -223,8 +228,12 @@ public class MainActivity extends AppCompatActivity {
                 return sp.getString("secret", null) != null && sp.getLong("uid", 0) == uid;
             }
             @JavascriptInterface public void setInnerScrolled(boolean v) { innerScrolled = v; }
+            @JavascriptInterface public void reportError(String m) {
+                runOnUiThread(() -> android.widget.Toast.makeText(MainActivity.this, "JS: " + m, android.widget.Toast.LENGTH_LONG).show());
+            }
         }, "WazirApp");
 
+        web.clearCache(true);
         String start = urlFromIntent(getIntent());
         web.loadUrl(start != null ? start : BuildConfig.SITE_URL);
 
