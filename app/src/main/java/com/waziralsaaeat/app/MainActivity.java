@@ -309,6 +309,7 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         if (web != null) web.onResume();
         PollService.start(this); // نتأكد إن الخدمة شغالة كل ما التطبيق يتفتح
+        Updater.check(this);     // فحص التحديثات (كل 6 ساعات كحد أقصى)
     }
 
     @Override protected void onPause() {
