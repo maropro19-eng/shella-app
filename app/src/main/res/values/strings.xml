@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">شلة PRO</string>
+    <string name="channel_name">إشعارات الشلة</string>
+    <string name="svc_channel">الاتصال بالشلة</string>
+</resources>
