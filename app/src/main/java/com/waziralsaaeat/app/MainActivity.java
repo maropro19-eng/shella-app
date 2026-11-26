@@ -92,6 +92,10 @@ public class MainActivity extends AppCompatActivity {
         web.setOnTouchListener((v, ev) -> {
             if (ev.getActionMasked() == MotionEvent.ACTION_DOWN) {
                 touchInTopStrip = ev.getY() < getResources().getDisplayMetrics().density * 90;
+                // أي لمسة برا الشريط العلوي: ممنوع التطبيق يلتقط السحب، الصفحة (السبورة/القرعة) هي اللي تتعامل معاه
+                boolean allowRefresh = touchInTopStrip && v.getScrollY() == 0;
+                swipe.requestDisallowInterceptTouchEvent(!allowRefresh);
+                v.getParent().requestDisallowInterceptTouchEvent(!allowRefresh);
             }
             return false;
         });
