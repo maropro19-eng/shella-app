@@ -234,6 +234,7 @@ public class MainActivity extends AppCompatActivity {
         }, "WazirApp");
 
         web.clearCache(true);
+        android.widget.Toast.makeText(this, "نسخة التطبيق " + BuildConfig.VERSION_NAME, android.widget.Toast.LENGTH_LONG).show();
         String start = urlFromIntent(getIntent());
         web.loadUrl(start != null ? start : BuildConfig.SITE_URL);
 
